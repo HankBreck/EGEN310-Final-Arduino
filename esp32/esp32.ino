@@ -1,7 +1,7 @@
 #include <WiFi.h>
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
-#include <HardwareSerial.h>
+// #include <HardwareSerial.h>
 
 // Stolen from: 
 // https://github.com/espressif/arduino-esp32/blob/master/libraries/WiFi/examples/SimpleWiFiServer/SimpleWiFiServer.ino
@@ -16,16 +16,13 @@ const char *CMD_BACKWARD = "backward;";
 const char *CMD_STOP = "stop;";
 
 // WiFi constants
-// const char* ssid = "Malicious Mesh Network";
-// const char* pass = "casper-1";
 const char* ssid = "iPhone 13";
 const char* pass = "12345678";
 
-// WiFiServer server(80);
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
 
-HardwareSerial Arduino(2);
+// HardwareSerial Printer(2);
 
 const char content[] PROGMEM = R"rawliteral(
 <!DOCTYPE HTML>
@@ -82,32 +79,26 @@ String processor(const String& var){
 }
 
 void setup() {
-  Serial.begin(9600);
-  // Serial2.begin(9600, SERIAL_8N1, RXp2, TXp2);
-  Arduino.begin(115200);
+  Serial.begin(115200);
+  Serial2.begin(9600, SERIAL_8N1, RXp2, TXp2);
 
   Serial.println("Entering setup();");
 
   // Setup WiFi
-  Arduino.println();
-  Arduino.println();
-  Arduino.print("Connecting to ");
-  Arduino.println(ssid);
+  Serial.println();
+  Serial.println();
+  Serial.print("Connecting to ");
+  Serial.println(ssid);
   
   WiFi.begin(ssid, pass);
 
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
-    Arduino.print(".");
-    Serial.println("Awaiting wifi connection;");
+    Serial.print(".");
+    // Serial.println("Awaiting wifi connection;");
   }
 
-  Arduino.println("");
-  Arduino.println("WiFi connected.");
-  Arduino.print("IP address: ");
-  Arduino.println(WiFi.localIP());
-
-
+  Serial.println("");
   Serial.println("WiFi connected.");
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
@@ -120,12 +111,22 @@ void setup() {
     AsyncWebParameter *action_param = request->getParam("action");
     AsyncWebParameter *power_ratio_param = request->getParam("ratio");
     AsyncWebParameter *speed_param = request->getParam("speed");
-    const char *action = action_param->value().c_str();
-    const char *power_ratio = power_ratio_param->value().c_str();
-    const char *speed = speed_param->value().c_str();
+    if (action_param == NULL) {
+      Serial.println("Action is null");
+    }
+    if (power_ratio_param == NULL) {
+      Serial.println("Ratio is null");
+    }
+    if (speed_param == NULL) {
+      Serial.println("Speed is null");
+    }
+    Serial.printf("Action: %s\nRatio: %s\nSpeed: %s\n", action_param->value(), power_ratio_param->value(), speed_param->value());
+    long action = action_param->value().toInt();
+    long power_ratio = power_ratio_param->value().toInt();
+    long speed = speed_param->value().toInt();
 
     // TODO: Pass values to arduino
-
+    Serial2.printf("%d;%d;%d;\n", action, power_ratio, speed);
     // if (strcmp(value, "forward") == 0) {
     //   Serial.println(CMD_FORWARD);
     //   // Serial2.println(255);
@@ -145,8 +146,8 @@ void setup() {
 
 void loop() {
   // Serial.println(Serial2.readString());
-  if (Serial.peek() != -1) {
-    Arduino.println(Serial.readString());
+  if (Serial2.peek() != -1) {
+    Serial.println(Serial2.readString());
   }
   ws.cleanupClients();
 }

@@ -17,47 +17,48 @@ AF_DCMotor fl_motor(2);
 
 #define RXpin 2
 #define TXpin 3
-SoftwareSerial Serial2(RXpin, TXpin);
+SoftwareSerial Printer(RXpin, TXpin);
 
 char *buffer;
 
 void setup() {
   Serial.begin(9600);
-  Serial2.begin(115200);
+  Printer.begin(115200);
   Serial.println("Starting this up!");
 
   //Set initial speed of the motor & stop
-	fl_motor.setSpeed(55);
+	fl_motor.setSpeed(0);
 	fl_motor.run(RELEASE);
-  fr_motor.setSpeed(55);
+  fr_motor.setSpeed(0);
   fr_motor.run(RELEASE);
 }
 
 void loop() {
 
   if (Serial.peek() != -1) {
-    String cmd = Serial.readStringUntil(';');
-    String left_speed = Serial.readStringUntil(';');
-    String right_speed = Serial.readStringUntil(';');
-    if (strcmp(cmd.c_str(), CMD_FORWARD) == 0) {
+    long action; float ratio; long speed;
+    // long action = Serial.readStringUntil(';').toInt();
+    // long ratio = Serial.readStringUntil(';').toFloat();
+    // long speed = Serial.readStringUntil(';').toInt();
+    sscanf(Serial.readString().begin(), "%d;%f:%d;", action, ratio, speed);
+    if (action == 1) {
       // Move forward
-      Serial2.println("moving forward!");
+      Printer.println("moving forward!");
       fl_motor.run(BACKWARD);
-      fl_motor.setSpeed(left_speed)
+      fl_motor.setSpeed(speed);
       fr_motor.run(FORWARD);
-      fr_motor.setSpeed(right_speed)
-    } else if (strcmp(cmd.c_str(), CMD_BACKWARD) == 0) {
-      Serial2.println("moving backward!");
+      fr_motor.setSpeed(speed);
+    } else if (action == 2) {
+      Printer.println("moving backward!");
       fl_motor.run(FORWARD);
-      fl_motor.setSpeed(left_speed)
+      fl_motor.setSpeed(speed);
       fr_motor.run(BACKWARD);
-      fr_motor.setSpeed(right_speed)
-    } else if (strcmp(cmd.c_str(), CMD_STOP) == 0) {
-      Serial2.println("stopping!");
+      fr_motor.setSpeed(speed);
+    } else if (action == 0) {
+      Printer.println("stopping!");
       fl_motor.run(RELEASE);
       fr_motor.run(RELEASE);
     }
-    Serial.println(cmd.c_str());
   }
   // delay(1500);
 }
