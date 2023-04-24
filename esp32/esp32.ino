@@ -1,12 +1,10 @@
 #include <WiFi.h>
 #include <AsyncTCP.h>
-#include <ESPAsyncWebServer.h>
 #include <HardwareSerial.h>
 
 // Stolen from: 
 // https://github.com/espressif/arduino-esp32/blob/master/libraries/WiFi/examples/SimpleWiFiServer/SimpleWiFiServer.ino
 
-// this sample code provided by www.programmingboss.com
 #define RXp2 16
 #define TXp2 17
 
@@ -16,70 +14,12 @@ const char *CMD_BACKWARD = "backward;";
 const char *CMD_STOP = "stop;";
 
 // WiFi constants
-// const char* ssid = "Malicious Mesh Network";
-// const char* pass = "casper-1";
 const char* ssid = "iPhone 13";
 const char* pass = "12345678";
 
-// WiFiServer server(80);
-AsyncWebServer server(80);
-AsyncWebSocket ws("/ws");
-
+AsyncServer server(8888);
 HardwareSerial Arduino(2);
 
-const char content[] PROGMEM = R"rawliteral(
-<!DOCTYPE HTML>
-<html>
-  <head>
-    <title>ESP Web Server</title>
-  </head>
-  <body>
-    <div>
-    <h1>ESP WebSocket Server</h1>
-  </div>
-  </body>
-</html>
-)rawliteral";
-
-void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
-  AwsFrameInfo *info = (AwsFrameInfo*)arg;
-  if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
-    data[len] = 0;
-    if (strcmp((char*)data, "toggle") == 0) {
-      Serial.println("");
-    }
-  }
-}
-
-void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
-  switch (type) {
-    case WS_EVT_CONNECT:
-      Serial.printf("WebSocket client #%u connected from %s\n", client->id(), client->remoteIP().toString().c_str());
-      break;
-    case WS_EVT_DISCONNECT:
-      Serial.printf("WebSocket client #%u disconnected\n", client->id());
-      break;
-    case WS_EVT_DATA:
-      handleWebSocketMessage(arg, data, len);
-      break;
-    case WS_EVT_PONG:
-    case WS_EVT_ERROR:
-      break;
-  }
-}
-
-void initWebSocket() {
-  ws.onEvent(onEvent);
-  server.addHandler(&ws);
-}
-
-String processor(const String& var){
-  Serial.println(var);
-  if(var == "STATE"){
-    Serial.println("Received STATE message.");
-  }
-  return String();
-}
 
 void setup() {
   Serial.begin(9600);
@@ -112,41 +52,67 @@ void setup() {
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
 
-  initWebSocket();
+  server.onClient([](void * arg, AsyncClient * client) {
+    client->onData(onData);
+
+    client->onDisconnect([](void * arg, AsyncClient * client) {
+      Serial.println("Client disconnected");
+    });
+  }, nullptr);
 
   // Route for root / web page
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send_P(200, "text/html", content, processor);
-    AsyncWebParameter *action_param = request->getParam("action");
-    AsyncWebParameter *power_ratio_param = request->getParam("ratio");
-    AsyncWebParameter *speed_param = request->getParam("speed");
-    const char *action = action_param->value().c_str();
-    const char *power_ratio = power_ratio_param->value().c_str();
-    const char *speed = speed_param->value().c_str();
+  // server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+  //   request->send_P(200, "text/html", content, processor);
+  //   AsyncWebParameter *action_param = request->getParam("action");
+  //   AsyncWebParameter *power_ratio_param = request->getParam("ratio");
+  //   AsyncWebParameter *speed_param = request->getParam("speed");
+  //   const char *action = action_param->value().c_str();
+  //   const char *power_ratio = power_ratio_param->value().c_str();
+  //   const char *speed = speed_param->value().c_str();
 
-    // TODO: Pass values to arduino
+  //   // TODO: Pass values to arduino
 
-    // if (strcmp(value, "forward") == 0) {
-    //   Serial.println(CMD_FORWARD);
-    //   // Serial2.println(255);
-    // } else if (strcmp(value, "backward") == 0) {
+  //   // if (strcmp(value, "forward") == 0) {
+  //   //   Serial.println(CMD_FORWARD);
+  //   //   // Serial2.println(255);
+  //   // } else if (strcmp(value, "backward") == 0) {
 
-    //   Serial.println(CMD_BACKWARD);
-    //   // Serial2.println(255);
-    // } else {
-    //   Serial.println(CMD_STOP);
-    //   // Serial.printf("Invalid action received (%s)\n", value);
-    // }
-  });
+  //   //   Serial.println(CMD_BACKWARD);
+  //   //   // Serial2.println(255);
+  //   // } else {
+  //   //   Serial.println(CMD_STOP);
+  //   //   // Serial.printf("Invalid action received (%s)\n", value);
+  //   // }
+  // });
   
   // Begin the server
   server.begin();
 }
 
+
+
 void loop() {
-  // Serial.println(Serial2.readString());
-  if (Serial.peek() != -1) {
-    Arduino.println(Serial.readString());
-  }
-  ws.cleanupClients();
+  // if (Serial.peek() != -1) {
+  //   Arduino.println(Serial.readString());
+  // }
+}
+
+void onData(void *arg, AsyncClient* client, void *data, size_t len) {
+  String message = String((char*)data);
+  String delimiter = ",";
+  
+  int powerRatio = message.substring(0, message.indexOf(delimiter)).toInt();
+  message.remove(0, message.indexOf(delimiter) + delimiter.length());
+  
+  int direction = message.substring(0, message.indexOf(delimiter)).toInt();
+  message.remove(0, message.indexOf(delimiter) + delimiter.length());
+  
+  int speed = message.toInt();
+
+  Serial.printf("Received data: powerRatio=%d, direction=%d, speed=%d\n", powerRatio, direction, speed);
+
+  // send response to client
+  client->write("ACK", 3);
+
+  // Do something with the parsed data
 }
