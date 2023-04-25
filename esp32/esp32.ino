@@ -120,24 +120,13 @@ void setup() {
     if (speed_param == NULL) {
       Serial.println("Speed is null");
     }
-    Serial.printf("Action: %s\nRatio: %s\nSpeed: %s\n", action_param->value(), power_ratio_param->value(), speed_param->value());
+    // Serial.printf("Action: %s\nRatio: %s\nSpeed: %s\n", action_param->value(), power_ratio_param->value(), speed_param->value());
     long action = action_param->value().toInt();
     long power_ratio = power_ratio_param->value().toInt();
     long speed = speed_param->value().toInt();
 
     // TODO: Pass values to arduino
     Serial2.printf("%d;%d;%d;\n", action, power_ratio, speed);
-    // if (strcmp(value, "forward") == 0) {
-    //   Serial.println(CMD_FORWARD);
-    //   // Serial2.println(255);
-    // } else if (strcmp(value, "backward") == 0) {
-
-    //   Serial.println(CMD_BACKWARD);
-    //   // Serial2.println(255);
-    // } else {
-    //   Serial.println(CMD_STOP);
-    //   // Serial.printf("Invalid action received (%s)\n", value);
-    // }
   });
   
   // Begin the server
@@ -147,7 +136,7 @@ void setup() {
 void loop() {
   // Serial.println(Serial2.readString());
   if (Serial2.peek() != -1) {
-    Serial.println(Serial2.readString());
+    Serial.printf("Arduino: %s\n", Serial2.readString().c_str());
   }
   ws.cleanupClients();
 }
