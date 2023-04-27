@@ -1,135 +1,150 @@
-// https://lastminuteengineers.com/l293d-motor-driver-shield-arduino-tutorial/
 #include <AFMotor.h>
-// #include <Adafruit_MotorShield.h>
-#include <SoftwareSerial.h>
+#include <Servo.h> 
 
 // Drive Instructions
-const char *CMD_FORWARD = "forward";
-const char *CMD_BACKWARD = "backward";
-const char *CMD_STOP = "stop";
-const int TERM = '.';
 const String delimiter = ";";
 
-// [f || b][l || r]_motor
-AF_DCMotor fl_motor(1);
-AF_DCMotor fr_motor(2);
-AF_DCMotor bl_motor(3);
-AF_DCMotor br_motor(4);
-// Adafruit_MotorShield AFMS = Adafruit_MotorShield();
-// Adafruit_DCMotor *fl_motor = AFMS.getMotor(1);
-// Adafruit_DCMotor *fr_motor = AFMS.getMotor(2);
-// Adafruit_DCMotor *bl_motor = AFMS.getMotor(3);
-// Adafruit_DCMotor *br_motor = AFMS.getMotor(4);
+// Motor Setup
+AF_DCMotor m1(1);
+AF_DCMotor m2(2);
+AF_DCMotor m3(3);
+AF_DCMotor m4(4);
+Servo servo;
+const int initial_servo_pos = 40;
 
 #define RXpin 2
 #define TXpin 3
-SoftwareSerial Printer(RXpin, TXpin);
+
+// State trackers
+int cut_state = 0;
+int current_left_speed;
+int current_right_speed;
+
+void cut() {
+  servo.write(5);
+  delay(40);
+  servo.write(75);
+  delay(40);
+  servo.write(40);
+  delay(40);
+}
 
 void setup() {
   Serial.begin(9600);
-  Printer.begin(115200);
   Serial.println("Starting this up!");
 
-  // Connect to motor driver shield
-  // if (!AFMS.begin(0x60, &myWire)) {         // create with the default frequency 1.6KHz
-  //   Serial.println("Could not find Motor Shield. Check wiring.");
-  //   while (1);
-  // }
-  // Serial.println("Motor Shield found.");
+  // Intialize the servo
+  servo.attach(9);
+  servo.write(40);
 
   //Set initial speed of the motor & stop
-	fl_motor.setSpeed(0);
-	fl_motor.run(RELEASE);
+  
+	m1.setSpeed(200);
+	m1.run(RELEASE);
 
-  fr_motor.setSpeed(0);
-  fr_motor.run(RELEASE);
+  m2.setSpeed(200);
+  m2.run(RELEASE);
 
-  bl_motor.setSpeed(0);
-  bl_motor.run(RELEASE);
+  m3.setSpeed(200);
+  m3.run(RELEASE);
 
-  br_motor.setSpeed(0);
-  br_motor.run(RELEASE);
+  m4.setSpeed(200);
+  m4.run(RELEASE);
+
+  current_left_speed = 0;
+  current_right_speed = 0;
 }
 
-void update_motors(int speed, int direction) {
-  fl_motor.setSpeed(255);
-  fr_motor.setSpeed(255);
-  bl_motor.setSpeed(speed);
-  br_motor.setSpeed(speed);
+void get_speeds(int speed, int ratio, int& left_speed, int& right_speed) {
+    if(ratio == 50) {
+        left_speed = speed;
+        right_speed = speed;
+    } else if(ratio < 50) {
+        left_speed = speed * (100 - ratio) / 50;
+        right_speed = speed;
+    } else {
+        left_speed = speed;
+        right_speed = speed * ratio / 50;
+    }
+}
 
+void update_speed(int current, int target) {
+  if (current < target) {
+    for (int i=current; i<target; i++) {
+      m1.setSpeed(i);
+      m2.setSpeed(i);
+      m3.setSpeed(i);
+      m4.setSpeed(i);
+      current_speed = i;
+    }
+  } else if (current > target) {
+    for (int i=current; i>target; i--) {
+      m1.setSpeed(i);
+      m2.setSpeed(i);
+      m3.setSpeed(i);
+      m4.setSpeed(i);
+      current_speed = i;
+    }
+  }
+}
+
+void update_motors(int speed, int direction, int ratio) {
+  int left_speed, right_speed;
+  get_speeds(speed, ratio, &left_speed, &right_speed);
   if (direction == FORWARD) {
     Serial.println("moving forward!");
-    fl_motor.run(FORWARD);
-    fr_motor.run(FORWARD);
-    bl_motor.run(BACKWARD);
-    br_motor.run(BACKWARD);
+    m1.run(FORWARD);
+    m2.run(FORWARD);
+    m3.run(BACKWARD);
+    m4.run(BACKWARD);
   } else if (direction == BACKWARD) {
     Serial.println("moving backward!");
-    fl_motor.run(BACKWARD);
-    fr_motor.run(BACKWARD);
-    bl_motor.run(FORWARD);
-    br_motor.run(FORWARD);
+    m1.run(BACKWARD);
+    m2.run(BACKWARD);
+    m3.run(FORWARD);
+    m4.run(FORWARD);
   } else {
     Serial.println("releasing!");
-    fl_motor.run(RELEASE);
-    fr_motor.run(RELEASE);
-    bl_motor.run(RELEASE);
-    br_motor.run(RELEASE);
+    m1.run(RELEASE);
+    m2.run(RELEASE);
+    m3.run(RELEASE);
+    m4.run(RELEASE);
   }
+
+  update_speeds(current_speed, speed);
   return;
 }
 
 void loop() {
   if (Serial.peek() != -1) {
+
+    // Parse command
     String message = Serial.readStringUntil('\n');
-    // Parse command aspects
     int action = message.substring(0, message.indexOf(delimiter)).toInt();
     message.remove(0, message.indexOf(delimiter) + 1);
-    int power_ratio = message.substring(0, message.indexOf(delimiter)).toInt();
-    message.remove(0, message.indexOf(delimiter) + 1);
-    int speed = message.toInt();
 
-    if (action != NULL && power_ratio != NULL && speed != NULL) {
-      update_motors(speed, action);
-      // if (action == 1) {
-      //   // Move forward
-      //   Serial.println("moving forward!");
-      //   fl_motor.run(FORWARD);
-      //   fl_motor.setSpeed(speed);
+    // Handle cut command
+    if (action != NULL && action == 3) {
+      Serial.println("Doing a cut!");
+      int state = message.substring(0, message.indexOf(delimiter)).toInt();
+      message.remove(0, message.indexOf(delimiter) + 1);
+      if (state != 0 && state != 1) {
+        Serial.println("Cutting went terribly wrong :(");
+      }
+      cut();
+      delay(40);
+    
+    // Handle drive command
+    } else {
+      int power_ratio = message.substring(0, message.indexOf(delimiter)).toInt();
+      message.remove(0, message.indexOf(delimiter) + 1);
+      int speed = message.toInt();
 
-      //   fr_motor.run(FORWARD);
-      //   fr_motor.setSpeed(speed);
-
-      //   bl_motor.run(BACKWARD);
-      //   bl_motor.setSpeed(speed);
-
-      //   br_motor.run(BACKWARD);
-      //   br_motor.setSpeed(speed);
-      // } else if (action == 2) {
-      //   // Move backwards
-      //   Serial.println("moving backward!");
-      //   fl_motor.run(BACKWARD);
-      //   fl_motor.setSpeed(speed);
-
-      //   fr_motor.run(BACKWARD);
-      //   fr_motor.setSpeed(speed);
-        
-      //   bl_motor.run(FORWARD);
-      //   bl_motor.setSpeed(speed);
-
-      //   br_motor.run(FORWARD);
-      //   br_motor.setSpeed(speed);
-      // } else if (action == 0) {
-      //   // Stop
-      //   Serial.println("stopping!");
-      //   fl_motor.run(RELEASE);
-      //   fr_motor.run(RELEASE);
-      //   bl_motor.run(RELEASE);
-      //   br_motor.run(RELEASE);
-      // }
+      if (action != NULL && power_ratio != NULL && speed != NULL) {
+        update_motors(speed, action);
+      }
     }
   }
-  // delay(1500);
 }
 
 

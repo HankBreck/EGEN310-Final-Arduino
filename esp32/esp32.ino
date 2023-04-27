@@ -120,13 +120,17 @@ void setup() {
     if (speed_param == NULL) {
       Serial.println("Speed is null");
     }
-    // Serial.printf("Action: %s\nRatio: %s\nSpeed: %s\n", action_param->value(), power_ratio_param->value(), speed_param->value());
+    Serial.printf("Action: %s\nRatio: %s\nSpeed: %s\n", action_param->value(), power_ratio_param->value(), speed_param->value());
     long action = action_param->value().toInt();
     long power_ratio = power_ratio_param->value().toInt();
     long speed = speed_param->value().toInt();
 
-    // TODO: Pass values to arduino
     Serial2.printf("%d;%d;%d;\n", action, power_ratio, speed);
+  });
+
+  server.on("/cut", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send_P(200, "text/html", content, processor);
+    Serial2.println("3;");
   });
   
   // Begin the server
