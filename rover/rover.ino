@@ -91,16 +91,17 @@ void update_directions(int left_dir, int right_dir) {
 void update_motors(int speed, int direction, int ratio) {
 
   // Gentle steering
-  int target_left_speed, target_right_speed;
-  if(ratio == 50) {
-    target_left_speed = speed;
-    target_right_speed = speed;
-  } else if(ratio < 50) {
-    target_left_speed = speed * (100 - ratio) / 50;
-    target_right_speed = speed;
-  } else {
-    target_left_speed = speed;
-    target_right_speed = speed * ratio / 50;
+  int target_left_speed = speed; 
+  int target_right_speed = speed;
+
+  // Steer right
+  if (ratio > 0) {
+    target_right_speed = speed * (100 - ratio) / 100;
+  }
+
+  // Steer left
+  if (ratio < 0) {
+    target_left_speed = speed * (100 - ratio * -1) / 100;
   }
 
   // Default case
@@ -116,7 +117,7 @@ void loop() {
     int action = message.substring(0, message.indexOf(delimiter)).toInt();
     message.remove(0, message.indexOf(delimiter) + 1);
 
-    Serial.print("Received command:");
+    Serial.print("Received command");
     Serial.println(action);
 
     // Handle cut command
