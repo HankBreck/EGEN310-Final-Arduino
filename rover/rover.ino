@@ -103,19 +103,6 @@ void update_motors(int speed, int direction, int ratio) {
     target_right_speed = speed * ratio / 50;
   }
 
-  // Power steering
-  // if (ratio == 0) {
-  //   target_left_speed = speed / 10;
-  //   target_right_speed = speed;
-  //   update_directions(BACKWARD, FORWARD);
-  //   update_speeds(target_left_speed, target_right_speed);
-  // } else if (ratio = 100) {
-  //   target_left_speed = speed;
-  //   target_right_speed = speed / 10;
-  //   update_directions(FORWARD, BACKWARD);
-  //   update_speeds(target_left_speed, target_right_speed);
-  // }
-
   // Default case
   update_directions(direction, direction);
   update_speeds(target_left_speed, target_right_speed);
@@ -124,11 +111,13 @@ void update_motors(int speed, int direction, int ratio) {
 
 void loop() {
   if (Serial.peek() != -1) {
-
     // Parse command
     String message = Serial.readStringUntil('\n');
     int action = message.substring(0, message.indexOf(delimiter)).toInt();
     message.remove(0, message.indexOf(delimiter) + 1);
+
+    Serial.print("Received command:");
+    Serial.println(action);
 
     // Handle cut command
     if (action != NULL && action == 3) {
@@ -147,7 +136,12 @@ void loop() {
       message.remove(0, message.indexOf(delimiter) + 1);
       int speed = message.toInt();
 
-      if (action != NULL && power_ratio != NULL && speed != NULL) {
+      Serial.println("Doing a drive:");
+      Serial.println(action);
+      Serial.println(power_ratio);
+      Serial.println(speed);
+
+      if (action != NULL && speed != NULL) {
         update_motors(speed, action, power_ratio);
         Serial.println();
         Serial.println("After update:");
