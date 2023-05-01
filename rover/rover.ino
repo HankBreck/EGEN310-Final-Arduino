@@ -38,80 +38,87 @@ void setup() {
   servo.write(40);
 
   //Set initial speed of the motor & stop
-  
-	m1.setSpeed(200);
+	m1.setSpeed(0);
 	m1.run(RELEASE);
 
-  m2.setSpeed(200);
+  m2.setSpeed(0);
   m2.run(RELEASE);
 
-  m3.setSpeed(200);
+  m3.setSpeed(0);
   m3.run(RELEASE);
 
-  m4.setSpeed(200);
+  m4.setSpeed(0);
   m4.run(RELEASE);
 
   current_left_speed = 0;
   current_right_speed = 0;
 }
 
-void get_speeds(int speed, int ratio, int& left_speed, int& right_speed) {
-    if(ratio == 50) {
-        left_speed = speed;
-        right_speed = speed;
-    } else if(ratio < 50) {
-        left_speed = speed * (100 - ratio) / 50;
-        right_speed = speed;
-    } else {
-        left_speed = speed;
-        right_speed = speed * ratio / 50;
-    }
+void update_speeds(int target_left, int target_right) {
+  m2.setSpeed(target_left);
+  m3.setSpeed(target_left);
+  current_left_speed = target_left;
+
+  m1.setSpeed(target_right);
+  m4.setSpeed(target_right);
+  current_right_speed = target_right;
 }
 
-void update_speed(int current, int target) {
-  if (current < target) {
-    for (int i=current; i<target; i++) {
-      m1.setSpeed(i);
-      m2.setSpeed(i);
-      m3.setSpeed(i);
-      m4.setSpeed(i);
-      current_speed = i;
-    }
-  } else if (current > target) {
-    for (int i=current; i>target; i--) {
-      m1.setSpeed(i);
-      m2.setSpeed(i);
-      m3.setSpeed(i);
-      m4.setSpeed(i);
-      current_speed = i;
-    }
+void update_directions(int left_dir, int right_dir) {
+  if (left_dir == FORWARD) {
+    m2.run(FORWARD);
+    m3.run(BACKWARD);
+  } else if (left_dir == BACKWARD) {
+    m2.run(BACKWARD);
+    m3.run(FORWARD);
+  } else {
+    m2.run(RELEASE);
+    m3.run(RELEASE);
+  }
+
+  if (right_dir == FORWARD) {
+    m1.run(FORWARD);
+    m4.run(BACKWARD);
+  } else if (right_dir == BACKWARD) {
+    m1.run(BACKWARD);
+    m4.run(FORWARD);
+  } else {
+    m1.run(RELEASE);
+    m4.run(RELEASE);
   }
 }
 
 void update_motors(int speed, int direction, int ratio) {
-  int left_speed, right_speed;
-  get_speeds(speed, ratio, &left_speed, &right_speed);
-  if (direction == FORWARD) {
-    Serial.println("moving forward!");
-    m1.run(FORWARD);
-    m2.run(FORWARD);
-    m3.run(BACKWARD);
-    m4.run(BACKWARD);
-  } else if (direction == BACKWARD) {
-    Serial.println("moving backward!");
-    m1.run(BACKWARD);
-    m2.run(BACKWARD);
-    m3.run(FORWARD);
-    m4.run(FORWARD);
+
+  // Gentle steering
+  int target_left_speed, target_right_speed;
+  if(ratio == 50) {
+    target_left_speed = speed;
+    target_right_speed = speed;
+  } else if(ratio < 50) {
+    target_left_speed = speed * (100 - ratio) / 50;
+    target_right_speed = speed;
   } else {
-    Serial.println("releasing!");
-    m1.run(RELEASE);
-    m2.run(RELEASE);
-    m3.run(RELEASE);
-    m4.run(RELEASE);
+    target_left_speed = speed;
+    target_right_speed = speed * ratio / 50;
   }
 
-  update_speeds(current_speed, speed);
+  // Power steering
+  // if (ratio == 0) {
+  //   target_left_speed = speed / 10;
+  //   target_right_speed = speed;
+  //   update_directions(BACKWARD, FORWARD);
+  //   update_speeds(target_left_speed, target_right_speed);
+  // } else if (ratio = 100) {
+  //   target_left_speed = speed;
+  //   target_right_speed = speed / 10;
+  //   update_directions(FORWARD, BACKWARD);
+  //   update_speeds(target_left_speed, target_right_speed);
+  // }
+
+  // Default case
+  update_directions(direction, direction);
+  update_speeds(target_left_speed, target_right_speed);
   return;
 }
 
@@ -141,7 +148,13 @@ void loop() {
       int speed = message.toInt();
 
       if (action != NULL && power_ratio != NULL && speed != NULL) {
-        update_motors(speed, action);
+        update_motors(speed, action, power_ratio);
+        Serial.println();
+        Serial.println("After update:");
+        Serial.print("  Left current:");
+        Serial.println(current_left_speed);
+        Serial.print("  Right current:");
+        Serial.println(current_right_speed);
       }
     }
   }
