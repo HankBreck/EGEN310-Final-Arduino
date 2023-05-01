@@ -27,37 +27,116 @@ void setup() {
   Serial.println("Starting this up!");
 
   //Set initial speed of the motor & stop
-	fl_motor.setSpeed(0);
-	fl_motor.run(RELEASE);
-  fr_motor.setSpeed(0);
-  fr_motor.run(RELEASE);
+	m1.setSpeed(0);
+	m1.run(RELEASE);
+
+  m2.setSpeed(0);
+  m2.run(RELEASE);
+
+  m3.setSpeed(0);
+  m3.run(RELEASE);
+
+  m4.setSpeed(0);
+  m4.run(RELEASE);
+
+  current_left_speed = 0;
+  current_right_speed = 0;
+}
+
+void update_speeds(int target_left, int target_right) {
+  m2.setSpeed(target_left);
+  m3.setSpeed(target_left);
+  current_left_speed = target_left;
+
+  m1.setSpeed(target_right);
+  m4.setSpeed(target_right);
+  current_right_speed = target_right;
+}
+
+void update_directions(int left_dir, int right_dir) {
+  if (left_dir == FORWARD) {
+    m2.run(FORWARD);
+    m3.run(BACKWARD);
+  } else if (left_dir == BACKWARD) {
+    m2.run(BACKWARD);
+    m3.run(FORWARD);
+  } else {
+    m2.run(RELEASE);
+    m3.run(RELEASE);
+  }
+
+  if (right_dir == FORWARD) {
+    m1.run(FORWARD);
+    m4.run(BACKWARD);
+  } else if (right_dir == BACKWARD) {
+    m1.run(BACKWARD);
+    m4.run(FORWARD);
+  } else {
+    m1.run(RELEASE);
+    m4.run(RELEASE);
+  }
+}
+
+void update_motors(int speed, int direction, int ratio) {
+
+  // Gentle steering
+  int target_left_speed = speed; 
+  int target_right_speed = speed;
+
+  // Steer right
+  if (ratio > 0) {
+    target_right_speed = speed * (100 - ratio) / 100;
+  }
+
+  // Steer left
+  if (ratio < 0) {
+    target_left_speed = speed * (100 - ratio * -1) / 100;
+  }
+
+  // Default case
+  update_directions(direction, direction);
+  update_speeds(target_left_speed, target_right_speed);
+  return;
 }
 
 void loop() {
 
   if (Serial.peek() != -1) {
-    long action; float ratio; long speed;
-    // long action = Serial.readStringUntil(';').toInt();
-    // long ratio = Serial.readStringUntil(';').toFloat();
-    // long speed = Serial.readStringUntil(';').toInt();
-    sscanf(Serial.readString().begin(), "%d;%f:%d;", action, ratio, speed);
-    if (action == 1) {
-      // Move forward
-      Printer.println("moving forward!");
-      fl_motor.run(BACKWARD);
-      fl_motor.setSpeed(speed);
-      fr_motor.run(FORWARD);
-      fr_motor.setSpeed(speed);
-    } else if (action == 2) {
-      Printer.println("moving backward!");
-      fl_motor.run(FORWARD);
-      fl_motor.setSpeed(speed);
-      fr_motor.run(BACKWARD);
-      fr_motor.setSpeed(speed);
-    } else if (action == 0) {
-      Printer.println("stopping!");
-      fl_motor.run(RELEASE);
-      fr_motor.run(RELEASE);
+
+    // Parse command
+    String message = Serial.readStringUntil('\n');
+    int action = message.substring(0, message.indexOf(delimiter)).toInt();
+    message.remove(0, message.indexOf(delimiter) + 1);
+
+    Serial.print("Received command");
+    Serial.println(action);
+
+    // Handle cut command
+    if (action != NULL && action == 3) {
+      Serial.println("Doing a cut!");
+      int state = message.substring(0, message.indexOf(delimiter)).toInt();
+      message.remove(0, message.indexOf(delimiter) + 1);
+      if (state != 0 && state != 1) {
+        Serial.println("Cutting went terribly wrong :(");
+      }
+      cut();
+      delay(40);
+    
+    // Handle drive command
+    } else {
+      int power_ratio = message.substring(0, message.indexOf(delimiter)).toInt();
+      message.remove(0, message.indexOf(delimiter) + 1);
+      int speed = message.toInt();
+
+      if (action != NULL && power_ratio != NULL && speed != NULL) {
+        update_motors(speed, action, power_ratio);
+        Serial.println();
+        Serial.println("After update:");
+        Serial.print("  Left current:");
+        Serial.println(current_left_speed);
+        Serial.print("  Right current:");
+        Serial.println(current_right_speed);
+      }
     }
   }
   // delay(1500);
