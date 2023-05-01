@@ -140,7 +140,8 @@ void setup() {
 void loop() {
   // Serial.println(Serial2.readString());
   if (Serial2.peek() != -1) {
-    Serial.printf("Arduino: %s\n", Serial2.readString().c_str());
+    delay(500);
+    Serial.printf("Arduino: %s\n", Serial2.readStringUntil('\n').c_str());
   }
   ws.cleanupClients();
 }
