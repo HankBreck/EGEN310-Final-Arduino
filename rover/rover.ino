@@ -18,9 +18,6 @@ int cut_state = 0;
 int current_left_speed;
 int current_right_speed;
 
-// Analog Tracking
-// const int 
-
 void cut() {
   servo.write(0);
   delay(40);
@@ -53,9 +50,6 @@ void setup() {
 
   current_left_speed = 0;
   current_right_speed = 0;
-
-  // Initialize the analog pin
-  pinMode(A5, INPUT);
 }
 
 void update_speeds(int target_left, int target_right) {
@@ -93,7 +87,6 @@ void update_directions(int left_dir, int right_dir) {
 }
 
 void update_motors(int speed, int direction, int ratio) {
-
   // Gentle steering
   int target_left_speed = speed; 
   int target_right_speed = speed;
@@ -121,12 +114,8 @@ void loop() {
     int action = message.substring(0, message.indexOf(delimiter)).toInt();
     message.remove(0, message.indexOf(delimiter) + 1);
 
-    Serial.print("Received command");
-    Serial.println(action);
-
     // Handle cut command
     if (action != NULL && action == 3) {
-      Serial.println("Doing a cut!");
       int state = message.substring(0, message.indexOf(delimiter)).toInt();
       message.remove(0, message.indexOf(delimiter) + 1);
       if (state != 0 && state != 1) {
@@ -141,19 +130,8 @@ void loop() {
       message.remove(0, message.indexOf(delimiter) + 1);
       int speed = message.toInt();
 
-      Serial.println("Doing a drive:");
-      Serial.println(action);
-      Serial.println(power_ratio);
-      Serial.println(speed);
-
       if (action != NULL && speed != NULL) {
         update_motors(speed, action, power_ratio);
-        Serial.println();
-        Serial.println("After update:");
-        Serial.print("  Left current:");
-        Serial.println(current_left_speed);
-        Serial.print("  Right current:");
-        Serial.println(current_right_speed);
       }
     }
   }

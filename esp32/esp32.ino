@@ -1,11 +1,6 @@
 #include <WiFi.h>
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
-#include <analogWrite.h>
-// #include <HardwareSerial.h>
-
-// Stolen from: 
-// https://github.com/espressif/arduino-esp32/blob/master/libraries/WiFi/examples/SimpleWiFiServer/SimpleWiFiServer.ino
 
 #define RXp2 16
 #define TXp2 17
@@ -22,30 +17,10 @@ const char* pass = "12345678";
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
 
-// Analog Constants
-const int potPin = 34;
-
-const char content[] PROGMEM = R"rawliteral(
-<!DOCTYPE HTML>
-<html>
-  <head>
-    <title>ESP Web Server</title>
-  </head>
-  <body>
-    <div>
-    <h1>ESP WebSocket Server</h1>
-  </div>
-  </body>
-</html>
-)rawliteral";
-
 void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
   AwsFrameInfo *info = (AwsFrameInfo*)arg;
   if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
     data[len] = 0;
-    if (strcmp((char*)data, "toggle") == 0) {
-      Serial.println("");
-    }
   }
 }
 
@@ -73,9 +48,6 @@ void initWebSocket() {
 
 String processor(const String& var){
   Serial.println(var);
-  if(var == "STATE"){
-    Serial.println("Received STATE message.");
-  }
   return String();
 }
 
@@ -103,20 +75,9 @@ void setup() {
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
 
-  server.onClient([](void * arg, AsyncClient * client) {
-    client->onData(onData);
-
-    client->onDisconnect([](void * arg, AsyncClient * client) {
-      Serial.println("Client disconnected");
-    });
-  }, nullptr);
-
-  // Set analog pin 25 to output
-  pinMode(33, OUTPUT);
-
   // Route for root / web page
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send_P(200, "text/html", content, processor);
+    request->send_P(200, "text/plain", "noop", processor);
     AsyncWebParameter *action_param = request->getParam("action");
     AsyncWebParameter *power_ratio_param = request->getParam("ratio");
     AsyncWebParameter *speed_param = request->getParam("speed");
@@ -129,17 +90,18 @@ void setup() {
     if (speed_param == NULL) {
       Serial.println("Speed is null");
     }
-    // Serial.printf("Action: %s\nRatio: %s\nSpeed: %s\n", action_param->value(), power_ratio_param->value(), speed_param->value());
     long action = action_param->value().toInt();
     long power_ratio = power_ratio_param->value().toInt();
     long speed = speed_param->value().toInt();
 
+    // Send serialized drive command to Arduino
     Serial2.printf("%d;%d;%d;\n", action, power_ratio, speed);
     delay(500);
   });
 
   server.on("/cut", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send_P(200, "text/html", content, processor);
+    request->send_P(200, "text/plain", "noop", processor);
+    // Send cut command to Arduino
     Serial2.println("3;");
   });
   
@@ -148,7 +110,7 @@ void setup() {
 }
 
 void loop() {
-  // analogWrite(25, 255);
+  // Pass Arduino Serial output to ESP-32 output for testing
   if (Serial2.peek() != -1) {
     Serial.println(Serial2.readString().c_str());
   }
