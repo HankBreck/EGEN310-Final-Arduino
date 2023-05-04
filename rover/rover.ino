@@ -1,30 +1,42 @@
-// https://lastminuteengineers.com/l293d-motor-driver-shield-arduino-tutorial/
 #include <AFMotor.h>
+#include <Servo.h> 
 #include <SoftwareSerial.h>
 
 // Drive Instructions
-const char *CMD_FORWARD = "forward";
-const char *CMD_BACKWARD = "backward";
-const char *CMD_STOP = "stop";
-const int TERM = '.';
+const String delimiter = ";";
 
-// [f || b][l || r]_motor
-AF_DCMotor fr_motor(1);
-AF_DCMotor fl_motor(2);
+// Motor Setup
+AF_DCMotor m1(1);
+AF_DCMotor m2(2);
+AF_DCMotor m3(3);
+AF_DCMotor m4(4);
+Servo servo;
+const int initial_servo_pos = 40;
 
-// AF_DCMotor bl_motor(3);
-// AF_DCMotor br_motor(4);
+// State trackers
+int cut_state = 0;
+int current_left_speed;
+int current_right_speed;
 
-#define RXpin 2
-#define TXpin 3
-SoftwareSerial Printer(RXpin, TXpin);
+// Analog Tracking
+// const int 
 
-char *buffer;
+void cut() {
+  servo.write(0);
+  delay(40);
+  servo.write(95);
+  delay(40);
+  servo.write(40);
+  delay(40);
+}
 
 void setup() {
   Serial.begin(9600);
-  Printer.begin(115200);
   Serial.println("Starting this up!");
+
+  // Intialize the servo
+  servo.attach(9);
+  servo.write(40);
 
   //Set initial speed of the motor & stop
 	m1.setSpeed(0);
@@ -41,6 +53,9 @@ void setup() {
 
   current_left_speed = 0;
   current_right_speed = 0;
+
+  // Initialize the analog pin
+  pinMode(A5, INPUT);
 }
 
 void update_speeds(int target_left, int target_right) {
@@ -100,9 +115,7 @@ void update_motors(int speed, int direction, int ratio) {
 }
 
 void loop() {
-
   if (Serial.peek() != -1) {
-
     // Parse command
     String message = Serial.readStringUntil('\n');
     int action = message.substring(0, message.indexOf(delimiter)).toInt();
@@ -128,7 +141,12 @@ void loop() {
       message.remove(0, message.indexOf(delimiter) + 1);
       int speed = message.toInt();
 
-      if (action != NULL && power_ratio != NULL && speed != NULL) {
+      Serial.println("Doing a drive:");
+      Serial.println(action);
+      Serial.println(power_ratio);
+      Serial.println(speed);
+
+      if (action != NULL && speed != NULL) {
         update_motors(speed, action, power_ratio);
         Serial.println();
         Serial.println("After update:");
@@ -139,47 +157,6 @@ void loop() {
       }
     }
   }
-  // delay(1500);
 }
 
 
-//
-// BEGIN #1
-//
-
-// // https://github.com/tylersweat/arduino-L293D
-// #include <L293D.h>
-
-// // TODO: Figure out correct pin config
-// L293D front_left_motor(9,8,7);
-// L293D front_right_motor(9,8,7);
-// // L293D back_left_motor(9,8,7);
-// // L293D back_right_motor(9,8,7);
-
-// // Drive Instructions
-// const int CMD_FORWARD = 1;
-// const int CMD_BACKWARD = 2;
-// const int CMD_STOP = 3;
-
-// // this sample code provided by www.programmingboss.com
-// void setup() {
-//   Serial.begin(9600);
-// }
-
-// void loop() {
-//   int cmd = Serial.read();
-//   int speed = Serial.read();
-//   if (cmd == CMD_FORWARD) {
-//     front_left_motor.set(speed);
-//     front_right_motor.set(speed);
-//   } else if (cmd == CMD_BACKWARD) {
-//     front_left_motor.set(-1*speed);
-//     front_right_motor.set(-1*speed);
-//   } else if (cmd == CMD_STOP) {
-//     front_left_motor.set(0);
-//     front_right_motor.set(0);
-//   } else {
-//     // Unknown command
-//   }
-//   delay(500);
-// }

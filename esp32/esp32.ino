@@ -1,6 +1,8 @@
 #include <WiFi.h>
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
+#include <analogWrite.h>
+// #include <HardwareSerial.h>
 
 // Stolen from: 
 // https://github.com/espressif/arduino-esp32/blob/master/libraries/WiFi/examples/SimpleWiFiServer/SimpleWiFiServer.ino
@@ -20,6 +22,63 @@ const char* pass = "12345678";
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
 
+// Analog Constants
+const int potPin = 34;
+
+const char content[] PROGMEM = R"rawliteral(
+<!DOCTYPE HTML>
+<html>
+  <head>
+    <title>ESP Web Server</title>
+  </head>
+  <body>
+    <div>
+    <h1>ESP WebSocket Server</h1>
+  </div>
+  </body>
+</html>
+)rawliteral";
+
+void handleWebSocketMessage(void *arg, uint8_t *data, size_t len) {
+  AwsFrameInfo *info = (AwsFrameInfo*)arg;
+  if (info->final && info->index == 0 && info->len == len && info->opcode == WS_TEXT) {
+    data[len] = 0;
+    if (strcmp((char*)data, "toggle") == 0) {
+      Serial.println("");
+    }
+  }
+}
+
+void onEvent(AsyncWebSocket *server, AsyncWebSocketClient *client, AwsEventType type, void *arg, uint8_t *data, size_t len) {
+  switch (type) {
+    case WS_EVT_CONNECT:
+      Serial.printf("WebSocket client #%u connected from %s\n", client->id(), client->remoteIP().toString().c_str());
+      break;
+    case WS_EVT_DISCONNECT:
+      Serial.printf("WebSocket client #%u disconnected\n", client->id());
+      break;
+    case WS_EVT_DATA:
+      handleWebSocketMessage(arg, data, len);
+      break;
+    case WS_EVT_PONG:
+    case WS_EVT_ERROR:
+      break;
+  }
+}
+
+void initWebSocket() {
+  ws.onEvent(onEvent);
+  server.addHandler(&ws);
+}
+
+String processor(const String& var){
+  Serial.println(var);
+  if(var == "STATE"){
+    Serial.println("Received STATE message.");
+  }
+  return String();
+}
+
 void setup() {
   Serial.begin(115200);
   Serial2.begin(9600, SERIAL_8N1, RXp2, TXp2);
@@ -37,7 +96,6 @@ void setup() {
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
-    // Serial.println("Awaiting wifi connection;");
   }
 
   Serial.println("");
@@ -52,6 +110,9 @@ void setup() {
       Serial.println("Client disconnected");
     });
   }, nullptr);
+
+  // Set analog pin 25 to output
+  pinMode(33, OUTPUT);
 
   // Route for root / web page
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
@@ -73,28 +134,23 @@ void setup() {
     long power_ratio = power_ratio_param->value().toInt();
     long speed = speed_param->value().toInt();
 
-    // TODO: Pass values to arduino
     Serial2.printf("%d;%d;%d;\n", action, power_ratio, speed);
-    // if (strcmp(value, "forward") == 0) {
-    //   Serial.println(CMD_FORWARD);
-    //   // Serial2.println(255);
-    // } else if (strcmp(value, "backward") == 0) {
-  //   //   Serial.println(CMD_BACKWARD);
-  //   //   // Serial2.println(255);
-  //   // } else {
-  //   //   Serial.println(CMD_STOP);
-  //   //   // Serial.printf("Invalid action received (%s)\n", value);
-  //   // }
-  // });
+    delay(500);
+  });
+
+  server.on("/cut", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send_P(200, "text/html", content, processor);
+    Serial2.println("3;");
+  });
   
   // Begin the server
   server.begin();
 }
 
 void loop() {
-  // Serial.println(Serial2.readString());
+  // analogWrite(25, 255);
   if (Serial2.peek() != -1) {
-    Serial.println(Serial2.readString());
+    Serial.println(Serial2.readString().c_str());
   }
   ws.cleanupClients();
 }
