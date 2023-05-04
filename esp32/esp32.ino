@@ -1,6 +1,7 @@
 #include <WiFi.h>
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
+#include <analogWrite.h>
 // #include <HardwareSerial.h>
 
 // Stolen from: 
@@ -22,7 +23,8 @@ const char* pass = "12345678";
 AsyncWebServer server(80);
 AsyncWebSocket ws("/ws");
 
-// HardwareSerial Printer(2);
+// Analog Constants
+const int potPin = 34;
 
 const char content[] PROGMEM = R"rawliteral(
 <!DOCTYPE HTML>
@@ -95,7 +97,6 @@ void setup() {
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
-    // Serial.println("Awaiting wifi connection;");
   }
 
   Serial.println("");
@@ -104,6 +105,9 @@ void setup() {
   Serial.println(WiFi.localIP());
 
   initWebSocket();
+
+  // Set analog pin 25 to output
+  pinMode(33, OUTPUT);
 
   // Route for root / web page
   server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
@@ -120,12 +124,13 @@ void setup() {
     if (speed_param == NULL) {
       Serial.println("Speed is null");
     }
-    // Serial.printf("Action: %s\nRatio: %s\nSpeed: %s\n", action_param->value(), power_ratio_param->value(), speed_param->value());
+    Serial.printf("Action: %s\nRatio: %s\nSpeed: %s\n", action_param->value(), power_ratio_param->value(), speed_param->value());
     long action = action_param->value().toInt();
     long power_ratio = power_ratio_param->value().toInt();
     long speed = speed_param->value().toInt();
 
     Serial2.printf("%d;%d;%d;\n", action, power_ratio, speed);
+    delay(500);
   });
 
   server.on("/cut", HTTP_GET, [](AsyncWebServerRequest *request){
@@ -138,10 +143,9 @@ void setup() {
 }
 
 void loop() {
-  // Serial.println(Serial2.readString());
+  // analogWrite(25, 255);
   if (Serial2.peek() != -1) {
-    delay(500);
-    Serial.printf("Arduino: %s\n", Serial2.readStringUntil('\n').c_str());
+    Serial.println(Serial2.readString().c_str());
   }
   ws.cleanupClients();
 }

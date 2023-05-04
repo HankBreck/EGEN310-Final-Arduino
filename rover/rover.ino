@@ -1,5 +1,6 @@
 #include <AFMotor.h>
 #include <Servo.h> 
+#include <SoftwareSerial.h>
 
 // Drive Instructions
 const String delimiter = ";";
@@ -12,18 +13,18 @@ AF_DCMotor m4(4);
 Servo servo;
 const int initial_servo_pos = 40;
 
-#define RXpin 2
-#define TXpin 3
-
 // State trackers
 int cut_state = 0;
 int current_left_speed;
 int current_right_speed;
 
+// Analog Tracking
+// const int 
+
 void cut() {
-  servo.write(5);
+  servo.write(0);
   delay(40);
-  servo.write(75);
+  servo.write(95);
   delay(40);
   servo.write(40);
   delay(40);
@@ -52,6 +53,9 @@ void setup() {
 
   current_left_speed = 0;
   current_right_speed = 0;
+
+  // Initialize the analog pin
+  pinMode(A5, INPUT);
 }
 
 void update_speeds(int target_left, int target_right) {
