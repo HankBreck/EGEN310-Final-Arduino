@@ -1,4 +1,4 @@
-# Rover Controller
+# Arduino & ESP-32 Development Board Code
 This repository contains the code used in the Arduino and ESP-32 modules of the EGEN-310 rover. The `rover`
 directory holds the Arduino C++ code that controls the movement and cutting functionality of the rover.
 The `esp32` directory holds the Arduino C++ code that facilitates communication between the controller and the Arduino.
@@ -25,3 +25,11 @@ you will need to wait for the ESP-32 to connect to the WiFi before the controlle
 
 > Note that the boot button on the ESP-32 dev board must be pressed when uploading the code to it.
 
+## Speed Adjustments
+Since the rover cannot mechanically turn its wheels, all steering functionality must be implemented at the software level.
+
+It takes two parameters: `speed` and `ratio`
+- `speed` - value between 0 and 255. This is the speed of the outside wheels.
+- `ratio` - the power ratio between -1 and 1. 
+
+The implementation can be seen [here](rover/rover.ino#L89-L108).
